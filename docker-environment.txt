@@ -1,0 +1,69 @@
+services:
+  frontend:
+    build:
+      context: ./client
+      dockerfile: client/Dockerfile.local
+    ports:
+      - "3000:3000"
+    environment:
+      - REACT_APP_API_URL=http://localhost:5000
+      - REACT_APP_API_KEY=serori_serori_serori
+    networks:
+      - app-network
+
+  backend:
+    build:
+      context: ./server
+      dockerfile: server/Dockerfile.local
+    ports:
+      - "5000:5000"
+    environment:
+      - ConnectionStrings__DefaultConnection=Server=...;
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ASPNETCORE_URLS=http://+:5000
+      - Jwt__Key=...
+      - Jwt__Issuer=http://localhost:5000
+      - Jwt__Audience=http://localhost:5000
+      - Jwt__ExpireMinutes=60
+      - Jwt__RefreshExpireMinutes=60
+      - Kestrel_Endpoints__Http__Url=http://+:5000
+      - Logging__LogLevel__Default=Information
+      - Logging__LogLevel__Microsoft.AspNetCore=Warning
+      - Cors_AllowedOrigins=http://localhost:3000
+      - Cors_AllowedMethods=GET,POST,PUT,DELETE,OPTIONS
+      - Cors_AllowedHeaders=Content-Type,Authorization
+      - Cors_AllowedCredentials=true
+      - Cors_MaxAge=3600
+      - ApiKey=...
+      - FrontUrl=http://localhost:3000
+      - BackUrl=http://localhost:5000
+
+    depends_on:
+      - sqlserver
+    networks:
+      - app-network
+
+  apache:
+    build:
+      context: ./apache
+      dockerfile: apache/Dockerfile.local
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+    networks:
+      - app-network
+
+  sqlserver:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    environment:
+      SA_PASSWORD: ...
+      ACCEPT_EULA: "Y"
+    ports:
+      - "1433:1433"
+    networks:
+      - app-network
+
+networks:
+  app-network:
+    driver: bridge

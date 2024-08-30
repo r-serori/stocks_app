@@ -1,0 +1,29 @@
+# ベースイメージとしてASP.NET Coreのランタイムを使用
+FROM mcr.microsoft.com/dotnet/aspnet:8.0 AS base
+WORKDIR /app
+EXPOSE 5000
+
+# SDKイメージを使用してアプリケーションをビルドする
+FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
+WORKDIR /src
+
+# プロジェクトファイルをコピーして復元を実行
+COPY ["server.csproj", "./"]
+RUN dotnet restore "./server.csproj"
+
+# 残りのソースコードをコピーしてビルド
+COPY . .
+WORKDIR "/src/."
+RUN dotnet build "server.csproj" -c Debug -o /app/build
+
+# アプリケーションをパブリッシュ
+FROM build AS publish
+RUN dotnet publish "server.csproj" -c Debug -o /app/publish
+
+# ベースイメージに戻り、パブリッシュされたアプリケーションをコピー
+FROM base AS final
+WORKDIR /app
+COPY --from=publish /app/publish .
+
+# 開発モードでアプリケーションを起動
+ENTRYPOINT ["dotnet", "server.dll"]
